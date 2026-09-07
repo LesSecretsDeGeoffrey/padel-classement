@@ -1,0 +1,181 @@
+{
+ "mois": "2026-09",
+ "dateCalcul": "2026-09-02",
+ "releveLe": "2026-09-07",
+ "classement": 31543,
+ "points": 196,
+ "evolution": -3305,
+ "meilleurClassement": 28238,
+ "positionnement": {
+  "france": [
+   31543,
+   131445
+  ],
+  "ligue": [
+   1769,
+   7965
+  ],
+  "comite": [
+   279,
+   1159
+  ],
+  "club": [
+   1,
+   6
+  ]
+ },
+ "historique": [
+  {
+   "mois": "2026-09",
+   "classement": 31543,
+   "evolution": -3305
+  },
+  {
+   "mois": "2026-08",
+   "classement": 28238,
+   "evolution": 3749
+  },
+  {
+   "mois": "2026-07",
+   "classement": 31987,
+   "evolution": -955
+  },
+  {
+   "mois": "2026-06",
+   "classement": 31032,
+   "evolution": 5898
+  },
+  {
+   "mois": "2026-05",
+   "classement": 36930,
+   "evolution": 3105
+  },
+  {
+   "mois": "2026-04",
+   "classement": 40035,
+   "evolution": 6440
+  }
+ ],
+ "resultats": [
+  {
+   "date": "2025-12-22",
+   "categorie": "P100",
+   "epreuve": "VidaPadel P100",
+   "rang": 15,
+   "points": 15,
+   "valableJusqua": "2026-12"
+  },
+  {
+   "date": "2026-01-06",
+   "categorie": "P100",
+   "epreuve": "Hommes Le Spark à partir de 18h P100",
+   "rang": 9,
+   "points": 25,
+   "valableJusqua": "2027-01"
+  },
+  {
+   "date": "2026-03-16",
+   "categorie": "P50",
+   "epreuve": "VidaPadel - Journée P50",
+   "rang": 17,
+   "points": 5,
+   "valableJusqua": "2027-03"
+  },
+  {
+   "date": "2026-03-17",
+   "categorie": "P100",
+   "epreuve": "Hommes Le Spark à partir de 18h15 P100",
+   "rang": 10,
+   "points": 21,
+   "valableJusqua": "2027-03"
+  },
+  {
+   "date": "2026-04-15",
+   "categorie": "P25",
+   "epreuve": "Open du Mercredi 15/04 à partir de 09H P25",
+   "rang": 9,
+   "points": 8,
+   "valableJusqua": "2027-04"
+  },
+  {
+   "date": "2026-04-17",
+   "categorie": "P100",
+   "epreuve": "SOIREE P100",
+   "rang": 15,
+   "points": 3,
+   "valableJusqua": "2027-04"
+  },
+  {
+   "date": "2026-04-28",
+   "categorie": "P25",
+   "epreuve": "JOURNÉE KAISER PADEL P25",
+   "rang": 5,
+   "points": 14,
+   "valableJusqua": "2027-04"
+  },
+  {
+   "date": "2026-05-11",
+   "categorie": "P50",
+   "epreuve": "VidaPadel - Journée P50",
+   "rang": 9,
+   "points": 13,
+   "valableJusqua": "2027-05"
+  },
+  {
+   "date": "2026-05-14",
+   "categorie": "P25",
+   "epreuve": "Hommes EXPRESS Le Spark à partir de 21H30 P25",
+   "rang": 1,
+   "points": 25,
+   "valableJusqua": "2027-05"
+  },
+  {
+   "date": "2026-05-18",
+   "categorie": "P100",
+   "epreuve": "VidaPadel - Journée P100",
+   "rang": 13,
+   "points": 10,
+   "valableJusqua": "2027-05"
+  },
+  {
+   "date": "2026-07-06",
+   "categorie": "P50",
+   "epreuve": "VidaPadel - Journée P50",
+   "rang": 10,
+   "points": 11,
+   "valableJusqua": "2027-07"
+  },
+  {
+   "date": "2026-07-08",
+   "categorie": "P25",
+   "epreuve": "Open Crédit mutuel Mercredi 08/07 à partir 9h P25",
+   "rang": 6,
+   "points": 13,
+   "valableJusqua": "2027-07"
+  },
+  {
+   "date": "2026-07-13",
+   "categorie": "P100",
+   "epreuve": "VidaPadel - Journée P100",
+   "rang": 9,
+   "points": 25,
+   "valableJusqua": "2027-07"
+  },
+  {
+   "date": "2026-07-29",
+   "categorie": "P25",
+   "epreuve": "Open du Mercredi 29/07 à partir de 9H P25",
+   "rang": 5,
+   "points": 14,
+   "valableJusqua": "2027-07"
+  },
+  {
+   "date": "2026-08-18",
+   "categorie": "P100",
+   "epreuve": "Hommes Le Spark à partir de 18h15 P100",
+   "rang": 13,
+   "points": 10,
+   "valableJusqua": "2027-08"
+  }
+ ]
+}

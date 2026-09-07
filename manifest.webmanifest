@@ -1,0 +1,13 @@
+{
+  "name": "Mon classement padel",
+  "short_name": "Padel",
+  "description": "Classement padel FFT, projection sur 12 mois et simulations de tournois.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FDF8F0",
+  "theme_color": "#1A1410",
+  "lang": "fr",
+  "icons": [{ "src": "icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}

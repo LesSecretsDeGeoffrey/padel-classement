@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1A1410">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Padel">
+<meta name="robots" content="noindex,nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<title>Mon classement padel</title>
+<style>
+:root{
+  --creme:#FDF8F0; --creme2:#F4E9D5; --blanc:#FFFDFA;
+  --encre:#2A1E14; --encre2:rgba(42,30,20,.62); --encre3:rgba(42,30,20,.42);
+  --or:#C8A04A; --or-profond:#8B6914; --or-titre:#A8641C; --or-pale:rgba(200,160,74,.15);
+  --sombre:#1A1410; --bord:#E6DCCD; --rouge:#B4553F; --vert:#4F7A57; --vert-pale:#E6EFE7; --rouge-pale:#F7E8E4;
+  --r:16px; --rs:10px; --sh:0 1px 2px rgba(42,30,20,.05),0 4px 14px rgba(42,30,20,.06);
+  --safe-b:env(safe-area-inset-bottom,0px); --nav-h:calc(62px + var(--safe-b));
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--creme);color:var(--encre)}
+body{font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:var(--nav-h)}
+h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;margin:0}
+h1{font-size:22px;color:var(--or-titre)} h2{font-size:19px;margin:22px 0 10px} h3{font-size:16px}
+header{padding:18px 18px 8px} .sous{font-size:13px;color:var(--encre2);margin-top:3px}
+main{padding:0 14px 20px;max-width:720px;margin:0 auto}
+.ecran{display:none} .ecran.actif{display:block}
+.carte{background:var(--blanc);border:1px solid var(--bord);border-radius:var(--r);padding:16px;box-shadow:var(--sh);margin-bottom:12px}
+.rang{font-family:Georgia,serif;font-size:44px;line-height:1;color:var(--or-titre);font-variant-numeric:lining-nums tabular-nums}
+.pts{font-size:15px;color:var(--encre2);margin-top:6px}
+.evo{display:inline-block;font-size:13px;padding:3px 9px;border-radius:999px;margin-top:8px;background:var(--vert-pale);color:var(--vert)}
+.evo.neg{background:var(--rouge-pale);color:var(--rouge)}
+.overline{font-family:"Courier New",monospace;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--or-profond);display:inline-block;background:var(--or-pale);padding:3px 8px;border-radius:999px}
+.bandeau{background:var(--or-pale);border:1px solid rgba(200,160,74,.35);border-radius:var(--rs);padding:10px 12px;font-size:14px;margin-top:10px}
+.bandeau.alerte{background:var(--rouge-pale);border-color:rgba(180,85,63,.3)}
+table{width:100%;border-collapse:collapse;font-size:14px} th{text-align:left;font-weight:600;color:var(--encre2);font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:6px 4px;border-bottom:1px solid var(--bord)}
+td{padding:8px 4px;border-bottom:1px solid var(--bord);vertical-align:top} td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tr.faible td{color:var(--encre3)} tr.simu td{background:var(--or-pale)}
+.puce{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--creme2);color:var(--encre2);margin-left:4px}
+.puce.simu{background:var(--or);color:#fff}
+label{display:block;font-size:13px;color:var(--encre2);margin:12px 0 4px}
+input,select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bord);border-radius:var(--rs);background:var(--blanc);color:var(--encre)}
+.tours{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tours button{flex:1 1 30%;font:inherit;font-size:14px;padding:9px 6px;border:1px solid var(--bord);border-radius:var(--rs);background:var(--blanc);color:var(--encre)}
+.tours button.actif{background:var(--sombre);color:var(--creme);border-color:var(--sombre)}
+.btn{display:block;width:100%;font:inherit;font-weight:600;font-size:16px;padding:13px;border:0;border-radius:var(--rs);background:var(--or);color:var(--sombre);margin-top:14px;cursor:pointer}
+.btn.secondaire{background:var(--creme2);color:var(--encre)} .btn.danger{background:var(--rouge-pale);color:var(--rouge)}
+.btn-mini{font:inherit;font-size:13px;padding:5px 9px;border:1px solid var(--bord);border-radius:8px;background:var(--blanc);color:var(--encre2);cursor:pointer}
+.resultat{margin-top:14px;padding-top:14px;border-top:1px dashed var(--bord)}
+.resultat .gros{font-family:Georgia,serif;font-size:30px;color:var(--or-titre);font-variant-numeric:lining-nums tabular-nums}
+.ligne{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:14px;border-bottom:1px solid var(--bord)} .ligne:last-child{border:0}
+.graphe{width:100%;height:auto;display:block;margin-top:6px}
+.graphe text{font:11px -apple-system,sans-serif;fill:var(--encre2)} .graphe .rangtxt{font-size:9px;fill:var(--or-profond)}
+.graphe .barre{fill:var(--or)} .graphe .barre.simu{fill:var(--or-titre)} .graphe .expire{fill:var(--rouge)}
+.toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 12px);transform:translateX(-50%);background:var(--sombre);color:var(--creme);padding:11px 16px;border-radius:999px;font-size:14px;max-width:92vw;box-shadow:var(--sh);opacity:0;pointer-events:none;transition:opacity .3s}
+.toast.visible{opacity:1}
+nav{position:fixed;left:0;right:0;bottom:0;height:var(--nav-h);padding-bottom:var(--safe-b);background:var(--blanc);border-top:1px solid var(--bord);display:flex}
+nav button{flex:1;font:inherit;font-size:12px;border:0;background:none;color:var(--encre3);padding:10px 4px 6px;cursor:pointer}
+nav button.actif{color:var(--or-titre);font-weight:600}
+nav button span{display:block;font-size:20px;line-height:1.1;margin-bottom:2px}
+.vide{color:var(--encre3);font-size:14px;padding:8px 0}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+@media (min-width:700px){body{padding-bottom:0} nav{position:sticky;top:0;bottom:auto;border-top:0;border-bottom:1px solid var(--bord);height:auto;padding:0} nav button{padding:12px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Mon classement padel</h1>
+  <div class="sous" id="sous-titre">Chargement…</div>
+</header>
+<nav>
+  <button data-ecran="aujourdhui" class="actif"><span>🏆</span>Aujourd'hui</button>
+  <button data-ecran="projection"><span>📈</span>Projection</button>
+  <button data-ecran="etsi"><span>🎯</span>Et si</button>
+  <button data-ecran="tournois"><span>📋</span>Tournois</button>
+</nav>
+<main>
+  <section class="ecran actif" id="ecran-aujourdhui"></section>
+  <section class="ecran" id="ecran-projection"></section>
+  <section class="ecran" id="ecran-etsi"></section>
+  <section class="ecran" id="ecran-tournois"></section>
+</main>
+<div class="toast" id="toast"></div>
+<script type="module" src="app.js"></script>
+<script>
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
