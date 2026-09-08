@@ -4,7 +4,7 @@ const $ = (s, r = document) => r.querySelector(s);
 const CLE_SIMU = 'padel.simulations';
 const CLE_MOIS = 'padel.dernierMoisVu';
 const ABREV_MOIS = ['jan', 'fév', 'mar', 'avr', 'mai', 'juin', 'juil', 'août', 'sep', 'oct', 'nov', 'déc'];
-const etat = { bareme: null, joueur: null, table: null, simulations: [], ecran: 'aujourdhui', etsi: null };
+const etat = { bareme: null, joueur: null, table: null, simulations: [], ajout: null };
 
 const nb = (n) => n == null ? '–' : new Intl.NumberFormat('fr-FR').format(n);
 const rangTxt = (c) => c == null ? 'non classé' : `${nb(c)}e`;
@@ -15,12 +15,13 @@ const echap = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '
 const deMois = (mois) => { const l = M.libelleMois(mois); return /^[aeiouy]/.test(l) ? `d'${l}` : `de ${l}`; };
 const abrevMois = (mois) => ABREV_MOIS[Number(mois.slice(5)) - 1];
 const rangCourt = (c) => c == null ? '' : c >= 10000 ? `${(c / 1000).toFixed(1).replace('.', ',')}k` : String(c);
+const pluriel = (n, un, plus) => n > 1 ? plus : un;
 
 function lireLocal(cle, defaut) { try { const v = localStorage.getItem(cle); return v ? JSON.parse(v) : defaut; } catch { return defaut; } }
 function ecrireLocal(cle, valeur) { try { localStorage.setItem(cle, JSON.stringify(valeur)); } catch { /* stockage indisponible */ } }
 
 let toastTimer;
-export function toast(msg) {
+function toast(msg) {
   const t = $('#toast'); t.textContent = msg; t.classList.add('visible');
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('visible'), 4500);
 }
@@ -39,13 +40,13 @@ async function charger() {
   etat.bareme = bareme; etat.joueur = joueur; etat.table = cl.table;
   etat.simulations = lireLocal(CLE_SIMU, []);
 
-  // Nouveau mois de classement : les simulations couvertes par la fenêtre sont remplacées par les vrais résultats.
+  // Nouveau mois de classement : les tournois ajoutés couverts par la fenêtre sont remplacés par les vrais résultats.
   const dernierVu = lireLocal(CLE_MOIS, null);
   if (dernierVu && joueur.mois > dernierVu) {
     const { gardees, supprimees } = M.purgerSimulations(etat.simulations, joueur.mois);
     if (supprimees.length) {
       etat.simulations = gardees; ecrireLocal(CLE_SIMU, gardees);
-      toast(`Nouveau classement ${deMois(joueur.mois)} chargé : ${supprimees.length} simulation${supprimees.length > 1 ? 's' : ''} remplacée${supprimees.length > 1 ? 's' : ''} par tes vrais résultats`);
+      toast(`Nouveau classement ${deMois(joueur.mois)} chargé : ${supprimees.length} tournoi${pluriel(supprimees.length, '', 's')} ajouté${pluriel(supprimees.length, '', 's')} remplacé${pluriel(supprimees.length, '', 's')} par tes vrais résultats`);
     }
   }
   ecrireLocal(CLE_MOIS, joueur.mois);
@@ -59,60 +60,107 @@ function importerDepuisLien() {
   if (!m) return;
   try {
     const simus = JSON.parse(decodeURIComponent(escape(atob(m[1]))));
-    if (Array.isArray(simus) && confirm(`Remplacer tes ${etat.simulations.length} simulation(s) par les ${simus.length} du lien ?`)) {
-      etat.simulations = simus; ecrireLocal(CLE_SIMU, simus); toast('Simulations importées');
+    if (Array.isArray(simus) && confirm(`Remplacer tes ${etat.simulations.length} tournoi(s) ajouté(s) par les ${simus.length} du lien ?`)) {
+      etat.simulations = simus; ecrireLocal(CLE_SIMU, simus); toast('Tournois importés');
     }
   } catch { toast('Lien de sauvegarde illisible'); }
   history.replaceState(null, '', location.pathname);
 }
 
-export function sauverSimulations() { ecrireLocal(CLE_SIMU, etat.simulations); }
+function sauverSimulations() { ecrireLocal(CLE_SIMU, etat.simulations); }
 
+// ---------- Rendu : un seul écran ----------
 function rendre() {
   if (!etat.joueur) return;
-  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('actif', b.dataset.ecran === etat.ecran));
-  document.querySelectorAll('.ecran').forEach(e => e.classList.toggle('actif', e.id === `ecran-${etat.ecran}`));
-  ({ aujourdhui: rendreAujourdhui, projection: rendreProjection, etsi: rendreEtSi, tournois: rendreTournois })[etat.ecran]();
+  const j = etat.joueur;
+  const proj = M.projection(j.resultats, etat.simulations, j.mois, etat.table, 12);
+  $('#app').innerHTML = carteClassement(j, proj) + carteAjout() + cartePalmares(j, proj) + carteProjection(j, proj) + pied();
+  brancherFormulaire('ajout', apercuAjout);
+  apercuAjout();
+  $('#ajout-valider').addEventListener('click', () => {
+    try {
+      const s = lireFormulaire('ajout');
+      etat.simulations.push({ id: `s${Date.now()}`, creePourMois: j.mois, ...s });
+      sauverSimulations();
+      etat.ajout = { ...etat.ajout, date: s.date };
+      rendre();
+      toast(`Ajouté au palmarès : ${s.points} pts, compte dès ${M.libelleMois(M.moisEntree(s.date))}`);
+    } catch (err) { toast(err.message); }
+  });
+  const te = $('#tout-effacer');
+  if (te) te.addEventListener('click', () => { if (confirm('Enlever tous les tournois ajoutés ?')) { etat.simulations = []; sauverSimulations(); rendre(); } });
+  $('#copier-lien').addEventListener('click', async () => {
+    const lien = `${location.origin}${location.pathname}#simu=${btoa(unescape(encodeURIComponent(JSON.stringify(etat.simulations))))}`;
+    try { await navigator.clipboard.writeText(lien); toast('Lien copié, ouvre-le sur ton autre appareil'); } catch { prompt('Copie ce lien :', lien); }
+  });
 }
 
-document.querySelector('nav').addEventListener('click', (e) => {
-  const b = e.target.closest('button'); if (!b) return;
-  etat.ecran = b.dataset.ecran; rendre(); window.scrollTo(0, 0);
+// Suppression unitaire : un seul écouteur délégué, branché une fois (le rendu recrée le contenu).
+$('#app').addEventListener('click', (e) => {
+  const b = e.target.closest('[data-suppr]'); if (!b) return;
+  etat.simulations = etat.simulations.filter(s => s.id !== b.dataset.suppr); sauverSimulations(); rendre();
+  toast('Tournoi enlevé');
 });
 
-// ---------- Écran Aujourd'hui ----------
-function rendreAujourdhui() {
-  const j = etat.joueur;
-  const proj = M.projection(j.resultats, etat.simulations, j.mois, etat.table, 2);
-  const auj = proj[0], prochain = proj[1];
-  const { retenus, nonRetenus } = M.totalMois(j.resultats, j.mois);
+function carteClassement(j, proj) {
+  const prochain = proj[1];
   const prochainePub = dateFr(M.premierMardi(M.moisSuivant(j.mois)));
-  const ligneRes = (r, faible) => `<tr class="${faible ? 'faible' : ''}"><td>${dateFr(r.date)}</td><td>${echap(r.categorie)} <span class="puce">${echap(r.rang)}e</span><div class="sous">${echap(r.epreuve || '')}</div></td><td class="num">${r.points}</td><td class="num">${M.libelleMois(r.valableJusqua || M.dernierMoisValide(r.date))}</td></tr>`;
-  const bandeau = prochain.expires.length
-    ? `<div class="bandeau">Au calcul ${deMois(prochain.mois)} (publié le ${prochainePub}) : ${prochain.expires.map(r => `${r.points} pts (${dateFr(r.date)})`).join(', ')} sort${prochain.expires.length > 1 ? 'ent' : ''}, perte nette ${prochain.perteNette} pt${prochain.perteNette > 1 ? 's' : ''} → ${nb(prochain.total)} pts, ${rangTxt(prochain.classement)}</div>`
-    : `<div class="bandeau">Rien n'expire au calcul ${deMois(prochain.mois)} (publié le ${prochainePub})</div>`;
-  $('#ecran-aujourdhui').innerHTML = `
+  const cutP25 = j.classement > 30000 ? M.pointsPourClassement(30000, etat.table) : null;
+  let ligneSimu = '';
+  if (etat.simulations.length) {
+    // premier mois où un tournoi ajouté compte, comparé au même mois sans lui
+    const sans = M.projection(j.resultats, [], j.mois, etat.table, 12);
+    const i = proj.findIndex(l => l.retenus.some(r => r.simule));
+    if (i >= 0) {
+      const places = sans[i].classement && proj[i].classement ? sans[i].classement - proj[i].classement : null;
+      ligneSimu = `<div class="bandeau simu">Avec tes ${etat.simulations.length} tournoi${pluriel(etat.simulations.length, '', 's')} ajouté${pluriel(etat.simulations.length, '', 's')} : <b>${nb(proj[i].total)} pts · ${rangTxt(proj[i].classement)}</b> au classement ${deMois(proj[i].mois)}${places ? ` (${signe(places)} places)` : ''}</div>`;
+    } else {
+      ligneSimu = `<div class="bandeau">Tes tournois ajoutés n'entrent pas dans tes 12 meilleurs résultats sur les 12 prochains mois</div>`;
+    }
+  }
+  const expiration = prochain.expires.length
+    ? `Au calcul ${deMois(prochain.mois)} (publié le ${prochainePub}) : ${prochain.expires.map(r => `${r.points} pts du ${dateFr(r.date)}`).join(', ')} sort${pluriel(prochain.expires.length, '', 'ent')}, perte nette ${prochain.perteNette} pt${pluriel(prochain.perteNette, '', 's')}`
+    : `Rien n'expire au calcul ${deMois(prochain.mois)} (publié le ${prochainePub})`;
+  return `
     <div class="carte">
       <span class="overline">${M.libelleMois(j.mois)}</span>
       <div class="rang" style="margin-top:10px">${rangTxt(j.classement)}</div>
-      <div class="pts">${nb(j.points)} points · ${nb(j.positionnement.france[1])} joueurs classés</div>
+      <div class="pts">${nb(j.points)} points · ${nb(j.positionnement.france[1])} joueurs classés · ligue ${rangTxt(j.positionnement.ligue[0])}</div>
       <span class="evo ${j.evolution < 0 ? 'neg' : ''}">${signe(j.evolution)} places ce mois-ci</span>
-      ${bandeau}
-      ${etat.simulations.length ? `<div class="sous" style="margin-top:8px">Avec tes ${etat.simulations.length} simulation${etat.simulations.length > 1 ? 's' : ''} : ${nb(prochain.total)} pts en ${M.libelleMois(prochain.mois)}, ${rangTxt(prochain.classement)}</div>` : ''}
-    </div>
-    <h2>Tes 12 résultats retenus</h2>
-    <div class="carte" style="padding:6px 10px"><table><thead><tr><th>Date</th><th>Épreuve</th><th class="num">Pts</th><th class="num">Jusqu'à</th></tr></thead>
-      <tbody>${retenus.map(r => ligneRes(r, false)).join('')}${nonRetenus.map(r => ligneRes(r, true)).join('')}</tbody></table>
-      ${nonRetenus.length ? `<div class="vide">Les ${nonRetenus.length} derniers ne comptent pas (au-delà des 12)</div>` : ''}
-    </div>
-    <h2>Historique</h2>
-    <div class="carte">${j.historique.map(h => `<div class="ligne"><span>${M.libelleMois(h.mois)}</span><span class="num">${rangTxt(h.classement)} <span class="puce">${signe(h.evolution)}</span></span></div>`).join('')}</div>`;
+      ${ligneSimu}
+      <div class="sous" style="margin-top:10px">${expiration}</div>
+      ${cutP25 ? `<div class="sous">Il te manque ${nb(Math.max(0, cutP25 - j.points))} pts pour passer sous les 30 000 (fin des P25)</div>` : ''}
+    </div>`;
 }
 
-// ---------- Écran Projection ----------
-function rendreProjection() {
-  const j = etat.joueur;
-  const p = M.projection(j.resultats, etat.simulations, j.mois, etat.table, 12);
+function carteAjout() {
+  return `
+    <h2>Ajouter un tournoi</h2>
+    <div class="carte">
+      ${formulaireSimu('ajout', etat.ajout)}
+      <div class="apercu" id="ajout-apercu"></div>
+      <button class="btn" id="ajout-valider">Ajouter à mon palmarès</button>
+    </div>`;
+}
+
+function cartePalmares(j, proj) {
+  const { retenus } = M.totalMois(j.resultats, j.mois);
+  const reels = j.resultats.map(r => ({ ...r, simule: false, retenu: retenus.includes(r) }));
+  const simus = etat.simulations.map(s => ({ ...s, simule: true, moisE: M.moisEntree(s.date) }));
+  const lignes = [...reels, ...simus].sort((x, y) => x.date < y.date ? 1 : x.date > y.date ? -1 : 0);
+  const rows = lignes.map(r => r.simule
+    ? `<tr class="simu"><td>${dateFr(r.date)}</td><td>${echap(r.categorie)} <span class="puce">${r.rang}e</span> <span class="puce simu">ajouté</span><div class="sous">${r.paires} paires · compte dès ${M.libelleMois(r.moisE)}</div></td><td class="num">${r.points}</td><td class="num"><button class="btn-mini" data-suppr="${echap(r.id)}" aria-label="Enlever">✕</button></td></tr>`
+    : `<tr class="${r.retenu ? '' : 'faible'}"><td>${dateFr(r.date)}</td><td>${echap(r.categorie)} <span class="puce">${r.rang}e</span>${r.retenu ? '' : ' <span class="puce hors">hors des 12</span>'}<div class="sous">${echap(r.epreuve || '')} · jusqu'à ${M.libelleMois(r.valableJusqua || M.dernierMoisValide(r.date))}</div></td><td class="num">${r.points}</td><td></td></tr>`
+  ).join('');
+  return `
+    <h2>Mon palmarès <small>${j.resultats.length} résultats${simus.length ? ` + ${simus.length} ajouté${pluriel(simus.length, '', 's')}` : ''}</small></h2>
+    <div class="carte" style="padding:6px 10px">
+      <table><thead><tr><th>Date</th><th>Tournoi</th><th class="num">Pts</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="vide">Les 12 meilleurs comptent ; les lignes grisées sont hors des 12 ce mois-ci</div>
+    </div>`;
+}
+
+function carteProjection(j, p) {
   const max = Math.max(...p.map(l => l.total), 1);
   const W = 360, H = 170, base = 132, larg = 24, pas = 30, x0 = 6;
   const barres = p.map((l, i) => {
@@ -126,18 +174,24 @@ function rendreProjection() {
       <text x="${x + larg / 2}" y="${base + 24}" text-anchor="middle">${abrevMois(l.mois)}</text>
       ${l.expires.length ? `<circle class="expire" cx="${x + larg / 2}" cy="${base + 32}" r="2.5"/>` : ''}`;
   }).join('');
-  const detail = p.map(l => `<div class="ligne"><span>${M.libelleMois(l.mois)}${l.expires.length ? ` <span class="puce">−${l.perteNette} pt${l.perteNette > 1 ? 's' : ''}</span>` : ''}${l.entrants.length ? ` <span class="puce simu">+${l.entrants.length}</span>` : ''}</span><span class="num">${nb(l.total)} pts · ${rangTxt(l.classement)}</span></div>`).join('');
-  $('#ecran-projection').innerHTML = `
+  const detail = p.map(l => `<div class="ligne"><span>${M.libelleMois(l.mois)}${l.expires.length ? ` <span class="puce">−${l.perteNette} pt${pluriel(l.perteNette, '', 's')}</span>` : ''}${l.entrants.length ? ` <span class="puce simu">+${l.entrants.length}</span>` : ''}</span><span class="num">${nb(l.total)} pts · ${rangTxt(l.classement)}</span></div>`).join('');
+  return `
+    <h2>Les 12 prochains mois</h2>
     <div class="carte">
-      <span class="overline">12 prochains classements</span>
       <svg class="graphe" viewBox="0 0 ${W} ${H}" role="img" aria-label="Points par mois">${barres}</svg>
-      <div class="sous">Barre or = points retenus · haut foncé = part des simulations · point rouge = un résultat expire · rang estimé avec la table ${deMois(j.mois)}</div>
-    </div>
-    <div class="carte">${detail}</div>
-    ${etat.simulations.length ? '' : '<div class="vide">Ajoute des simulations dans « Et si » pour voir leur effet ici</div>'}`;
+      <div class="sous">Barre or = points retenus · haut foncé = part des tournois ajoutés · point rouge = un résultat expire · rang estimé avec la table ${deMois(j.mois)}</div>
+      <details style="margin-top:8px"><summary>Le détail mois par mois</summary>${detail}</details>
+    </div>`;
 }
 
-// ---------- Simulations : formulaire partagé ----------
+function pied() {
+  return `<div class="pied">
+    <button class="lien" id="copier-lien">Copier mon lien de sauvegarde</button>
+    ${etat.simulations.length ? '<button class="lien" id="tout-effacer">Enlever tous les tournois ajoutés</button>' : ''}
+  </div>`;
+}
+
+// ---------- Formulaire d'ajout ----------
 function samediProchain() {
   const d = new Date(); d.setDate(d.getDate() + ((6 - d.getDay() + 7) % 7 || 7));
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -146,12 +200,14 @@ function samediProchain() {
 function formulaireSimu(prefixe, valeurs) {
   const v = Object.assign({ date: samediProchain(), categorie: 'P100', paires: 16, tour: 'quart', rang: 8 }, valeurs || {});
   return `
-    <label>Date du tournoi</label><input type="date" id="${prefixe}-date" value="${v.date}">
-    <label>Catégorie</label><select id="${prefixe}-cat">${M.CATEGORIES.map(c => `<option ${c === v.categorie ? 'selected' : ''}>${c}</option>`).join('')}</select>
-    <label>Paires inscrites</label><input type="number" id="${prefixe}-paires" min="4" max="64" value="${v.paires}">
+    <div class="grille2">
+      <div><label>Date</label><input type="date" id="${prefixe}-date" value="${v.date}"></div>
+      <div><label>Catégorie</label><select id="${prefixe}-cat">${M.CATEGORIES.map(c => `<option ${c === v.categorie ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+      <div><label>Paires inscrites</label><input type="number" id="${prefixe}-paires" min="4" max="64" value="${v.paires}"></div>
+      <div><label>Rang final</label><input type="number" id="${prefixe}-rang" min="1" max="64" value="${v.rang}"></div>
+    </div>
     <label>Tour atteint</label>
-    <div class="tours" id="${prefixe}-tours">${Object.entries(M.LIBELLES_TOURS).map(([k, l]) => `<button type="button" data-tour="${k}" class="${k === v.tour ? 'actif' : ''}">${l}</button>`).join('')}</div>
-    <label>ou rang final exact</label><input type="number" id="${prefixe}-rang" min="1" max="64" value="${v.rang}">`;
+    <div class="tours" id="${prefixe}-tours">${Object.entries(M.LIBELLES_TOURS).map(([k, l]) => `<button type="button" data-tour="${k}" class="${k === v.tour ? 'actif' : ''}">${l}</button>`).join('')}</div>`;
 }
 
 function lireFormulaire(prefixe) {
@@ -168,7 +224,7 @@ function lireFormulaire(prefixe) {
   if (s.date <= fin) throw new Error(`Un tournoi du ${dateFr(s.date)} serait déjà dans le classement ${deMois(etat.joueur.mois)} : choisis une date après le ${dateFr(fin)}`);
   if (!(s.rang >= 1)) throw new Error('Il manque le rang');
   s.points = M.points(etat.bareme, s.categorie, s.paires, s.rang);
-  s.epreuve = `Simulation ${s.categorie} à ${s.paires} paires`;
+  s.epreuve = `Tournoi ajouté ${s.categorie} à ${s.paires} paires`;
   return s;
 }
 
@@ -185,96 +241,19 @@ function brancherFormulaire(prefixe, auChangement) {
   [`#${prefixe}-date`, `#${prefixe}-cat`].forEach(sel => $(sel).addEventListener('input', auChangement));
 }
 
-function ajouterSimulation(s) {
-  etat.simulations.push({ id: `s${Date.now()}`, creePourMois: etat.joueur.mois, ...s });
-  sauverSimulations();
+// Aperçu vivant sous le formulaire : les points du tournoi et le mois où il compte.
+function apercuAjout() {
+  const zone = $('#ajout-apercu'), btn = $('#ajout-valider');
+  try {
+    const s = lireFormulaire('ajout');
+    etat.ajout = { date: s.date, categorie: s.categorie, paires: s.paires, tour: s.tour, rang: s.rang };
+    const interdit = M.categoriesInterdites(etat.joueur.classement).includes(s.categorie);
+    zone.innerHTML = `<b>${s.points} pts</b> · rang ${s.rang} en ${s.categorie} à ${s.paires} paires · compte dès ${M.libelleMois(M.moisEntree(s.date))}${interdit ? `<div class="bandeau alerte">Un ${s.categorie} est interdit à ton classement actuel</div>` : ''}`;
+    btn.disabled = false;
+  } catch (err) {
+    zone.innerHTML = `<div class="bandeau alerte">${echap(err.message)}</div>`;
+    btn.disabled = true;
+  }
 }
 
-function moisIndex(depuis, mois) {
-  const [a1, m1] = depuis.split('-').map(Number), [a2, m2] = mois.split('-').map(Number);
-  return (a2 - a1) * 12 + (m2 - m1);
-}
-
-// ---------- Écran Et si ----------
-function rendreEtSi() {
-  $('#ecran-etsi').innerHTML = `
-    <div class="carte">
-      <span class="overline">Et si je joue…</span>
-      ${formulaireSimu('etsi', etat.etsi)}
-      <div class="resultat" id="etsi-resultat"></div>
-      <button class="btn" id="etsi-ajouter">Ajouter à mes simulations</button>
-    </div>`;
-  brancherFormulaire('etsi', calculerEtSi);
-  $('#etsi-ajouter').addEventListener('click', () => {
-    try { ajouterSimulation(lireFormulaire('etsi')); toast('Simulation ajoutée'); etat.ecran = 'tournois'; rendre(); }
-    catch (err) { toast(err.message); }
-  });
-  calculerEtSi();
-}
-
-function calculerEtSi() {
-  const zone = $('#etsi-resultat');
-  let s;
-  try { s = lireFormulaire('etsi'); } catch (err) { zone.innerHTML = `<div class="bandeau alerte">${echap(err.message)}</div>`; return; }
-  etat.etsi = { date: s.date, categorie: s.categorie, paires: s.paires, tour: s.tour, rang: s.rang };
-  const j = etat.joueur, moisE = M.moisEntree(s.date);
-  const n = Math.max(2, moisIndex(j.mois, moisE) + 1);
-  const base = M.projection(j.resultats, etat.simulations, j.mois, etat.table, n);
-  const avec = M.projection(j.resultats, [...etat.simulations, { ...s, id: 'candidat' }], j.mois, etat.table, n);
-  const lb = base[base.length - 1], la = avec[avec.length - 1];
-  const remplace = lb.retenus.find(r => !la.retenus.some(x => x.date === r.date && x.points === r.points && x.simule === r.simule && x.id === r.id));
-  const entre = la.retenus.some(r => r.id === 'candidat');
-  const places = lb.classement && la.classement ? lb.classement - la.classement : null;
-  const interdites = M.categoriesInterdites(j.classement);
-  const cutP25 = j.classement > 30000 ? M.pointsPourClassement(30000, etat.table) : null;
-  zone.innerHTML = `
-    <div class="gros">${s.points} pts</div>
-    <div class="sous">${s.categorie} à ${s.paires} paires, rang ${s.rang} · entre au classement ${deMois(moisE)}</div>
-    <div class="ligne"><span>Sans ce résultat</span><span class="num">${nb(lb.total)} pts · ${rangTxt(lb.classement)}</span></div>
-    <div class="ligne"><span>Avec ce résultat</span><span class="num"><b>${nb(la.total)} pts · ${rangTxt(la.classement)}</b></span></div>
-    <div class="ligne"><span>Places gagnées</span><span class="num">${places == null ? '–' : signe(places)}</span></div>
-    <div class="sous" style="margin-top:8px">${entre ? (remplace ? `Il prend la place de ton résultat à ${remplace.points} pts (${dateFr(remplace.date)})` : 'Il entre dans tes 12 sans en sortir aucun') : 'Il n\'entre pas dans tes 12 résultats retenus'}</div>
-    ${interdites.includes(s.categorie) ? `<div class="bandeau alerte">Un ${s.categorie} est interdit à ton classement actuel (${rangTxt(j.classement)})</div>` : ''}
-    ${cutP25 ? `<div class="bandeau">Il te manque ${nb(Math.max(0, cutP25 - lb.total))} pts pour passer sous les 30 000 (fin des P25)</div>` : ''}`;
-}
-
-// ---------- Écran Tournois ----------
-function rendreTournois() {
-  const j = etat.joueur;
-  const reels = j.resultats.slice().sort((x, y) => x.date < y.date ? 1 : -1);
-  const simus = etat.simulations.slice().sort((x, y) => x.date < y.date ? -1 : 1);
-  $('#ecran-tournois').innerHTML = `
-    <h2 style="margin-top:6px">Mes simulations</h2>
-    <div class="carte" style="padding:6px 10px">
-      ${simus.length ? `<table><thead><tr><th>Date</th><th>Tournoi</th><th class="num">Pts</th><th></th></tr></thead><tbody>
-        ${simus.map(s => `<tr class="simu"><td>${dateFr(s.date)}</td><td>${echap(s.categorie)} · ${s.paires} paires · rang ${s.rang}<div class="sous">entre en ${M.libelleMois(M.moisEntree(s.date))}</div></td><td class="num">${s.points}</td><td class="num"><button class="btn-mini" data-suppr="${echap(s.id)}" aria-label="Supprimer">✕</button></td></tr>`).join('')}
-      </tbody></table>` : '<div class="vide">Aucune simulation</div>'}
-    </div>
-    ${simus.length ? '<button class="btn danger" id="tout-effacer">Effacer toutes les simulations</button>' : ''}
-    <button class="btn secondaire" id="copier-lien">Copier mon lien de sauvegarde</button>
-    <h2>Ajouter une simulation</h2>
-    <div class="carte">${formulaireSimu('ajout')}<button class="btn" id="ajout-valider">Ajouter</button></div>
-    <h2>Résultats réels (${M.libelleMois(j.mois)})</h2>
-    <div class="carte" style="padding:6px 10px"><table><thead><tr><th>Date</th><th>Épreuve</th><th class="num">Pts</th></tr></thead><tbody>
-      ${reels.map(r => `<tr><td>${dateFr(r.date)}</td><td>${echap(r.categorie)} <span class="puce">${r.rang}e</span><div class="sous">${echap(r.epreuve || '')}</div></td><td class="num">${r.points}</td></tr>`).join('')}
-    </tbody></table></div>`;
-  brancherFormulaire('ajout', () => {});
-  $('#ajout-valider').addEventListener('click', () => {
-    try { ajouterSimulation(lireFormulaire('ajout')); toast('Simulation ajoutée'); rendre(); } catch (err) { toast(err.message); }
-  });
-  const te = $('#tout-effacer');
-  if (te) te.addEventListener('click', () => { if (confirm('Effacer toutes les simulations ?')) { etat.simulations = []; sauverSimulations(); rendre(); } });
-  $('#copier-lien').addEventListener('click', async () => {
-    const lien = `${location.origin}${location.pathname}#simu=${btoa(unescape(encodeURIComponent(JSON.stringify(etat.simulations))))}`;
-    try { await navigator.clipboard.writeText(lien); toast('Lien copié, ouvre-le sur ton autre appareil'); } catch { prompt('Copie ce lien :', lien); }
-  });
-}
-
-// Suppression unitaire : un seul écouteur délégué, branché une fois (le rendu recrée le contenu).
-$('#ecran-tournois').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-suppr]'); if (!b) return;
-  etat.simulations = etat.simulations.filter(s => s.id !== b.dataset.suppr); sauverSimulations(); rendre();
-});
-
-export { etat, rendre, M, nb, rangTxt, dateFr, signe, echap };
 charger().catch(err => { $('#sous-titre').textContent = `Erreur de chargement : ${err.message}`; });
