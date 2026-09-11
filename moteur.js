@@ -6,26 +6,48 @@ export const LIBELLES_TOURS = {
   vainqueur: 'Vainqueur', finale: 'Finale perdue', demi: 'Demi-finale',
   quart: 'Quart de finale', huitieme: 'Huitième', seizieme: 'Seizième',
 };
-export const CUTS = [['P25', 30000], ['P50', 10000], ['P100', 3000], ['P250', 800]];
-export const CATEGORIES = ['P25', 'P50', 'P100', 'P250', 'P500', 'P1000', 'P1500', 'P2000'];
+// Cuts messieurs du guide 2027 : un joueur classé dans le top indiqué ne peut plus s'inscrire.
+export const CUTS = [['P25', 30000], ['P50', 10000], ['P100', 5000], ['P250', 1000]];
+export const CATEGORIES = ['P25', 'P50', 'P100', 'P250', 'P500', 'P1000', 'P2000', 'P3000'];
 
-export function tranche(categorie, nbPaires) {
+export function tranche(nbPaires) {
   const n = Math.max(4, Number(nbPaires) || 0);
-  let t = n <= 8 ? '4-8' : n <= 12 ? '9-12' : n <= 16 ? '13-16' : n <= 20 ? '17-20'
+  return n <= 8 ? '4-8' : n <= 12 ? '9-12' : n <= 16 ? '13-16' : n <= 20 ? '17-20'
     : n <= 24 ? '21-24' : n <= 28 ? '25-28' : '29-+';
-  if (categorie === 'P25' && t === '29-+') t = '25-28';
-  return t;
 }
 
-export function points(bareme, categorie, nbPaires, rang) {
-  const cat = bareme.grille[categorie];
-  if (!cat) throw new Error(`Catégorie inconnue : ${categorie}`);
-  const t = tranche(categorie, nbPaires);
-  const col = cat[t];
-  if (!col) throw new Error(`${categorie} n'existe pas à ${nbPaires} paires`);
-  const r = Math.min(Math.max(1, Math.trunc(Number(rang))), 32);
-  const v = col[String(r)];
-  if (v === undefined) throw new Error(`Rang ${rang} impossible en ${categorie} à ${nbPaires} paires`);
+function categorie(bareme, cat) {
+  const c = bareme.categories[cat];
+  if (!c) throw new Error(`Catégorie inconnue : ${cat}`);
+  return c;
+}
+
+// Depuis le 01/09/2026 : P25 à P250 dépendent du nombre de paires, P500 et P1000 du sexe,
+// P2000 et P3000 ont un barème unique.
+export function dependDesPaires(bareme, cat) {
+  return categorie(bareme, cat).type === 'paires';
+}
+
+export function colonne(bareme, cat, nbPaires, sexe = 'H') {
+  const c = categorie(bareme, cat);
+  if (c.type === 'paires') return tranche(nbPaires);
+  if (c.type === 'sexe') return sexe === 'F' ? 'F' : 'H';
+  return 'tous';
+}
+
+export function points(bareme, cat, nbPaires, rang, sexe = 'H') {
+  const c = categorie(bareme, cat);
+  const cle = colonne(bareme, cat, nbPaires, sexe);
+  const col = c.table[cle];
+  if (!col) throw new Error(`${cat} n'existe pas pour la colonne ${cle}`);
+  const r = Math.max(1, Math.trunc(Number(rang)));
+  const maxRang = Math.max(...Object.keys(col).map(Number));
+  // La dernière valeur vaut pour ce rang et au-delà, sauf dans une tranche de paires fermée
+  // (un rang 9 dans un tableau de 8 paires n'existe pas).
+  const ouverte = c.type !== 'paires' || cle === '29-+';
+  if (r > maxRang && !ouverte) throw new Error(`Rang ${rang} impossible en ${cat} à ${nbPaires} paires`);
+  const v = col[String(Math.min(r, maxRang))];
+  if (v === undefined) throw new Error(`Rang ${rang} impossible en ${cat} à ${nbPaires} paires`);
   return v;
 }
 

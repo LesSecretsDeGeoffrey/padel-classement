@@ -188,7 +188,8 @@ function pied() {
   return `<div class="pied">
     <button class="lien" id="copier-lien">Copier mon lien de sauvegarde</button>
     ${etat.simulations.length ? '<button class="lien" id="tout-effacer">Enlever tous les tournois ajoutés</button>' : ''}
-  </div>`;
+  </div>
+  <div class="vide" style="text-align:center">Barème FFT du guide 2027, en vigueur depuis le ${dateFr(etat.bareme.enVigueurDepuis)}</div>`;
 }
 
 // ---------- Formulaire d'ajout ----------
@@ -222,6 +223,8 @@ function lireFormulaire(prefixe) {
   if (!s.date) throw new Error('Il manque la date');
   const fin = M.finFenetre(etat.joueur.mois);
   if (s.date <= fin) throw new Error(`Un tournoi du ${dateFr(s.date)} serait déjà dans le classement ${deMois(etat.joueur.mois)} : choisis une date après le ${dateFr(fin)}`);
+  // Le barème chargé est celui du guide 2027 : refuser plutôt que calculer faux sur une date antérieure.
+  if (s.date < etat.bareme.enVigueurDepuis) throw new Error(`Le barème chargé s'applique aux tournois joués à partir du ${dateFr(etat.bareme.enVigueurDepuis)}`);
   if (!(s.rang >= 1)) throw new Error('Il manque le rang');
   s.points = M.points(etat.bareme, s.categorie, s.paires, s.rang);
   s.epreuve = `Tournoi ajouté ${s.categorie} à ${s.paires} paires`;
@@ -248,7 +251,10 @@ function apercuAjout() {
     const s = lireFormulaire('ajout');
     etat.ajout = { date: s.date, categorie: s.categorie, paires: s.paires, tour: s.tour, rang: s.rang };
     const interdit = M.categoriesInterdites(etat.joueur.classement).includes(s.categorie);
-    zone.innerHTML = `<b>${s.points} pts</b> · rang ${s.rang} en ${s.categorie} à ${s.paires} paires · compte dès ${M.libelleMois(M.moisEntree(s.date))}${interdit ? `<div class="bandeau alerte">Un ${s.categorie} est interdit à ton classement actuel</div>` : ''}`;
+    const selonPaires = M.dependDesPaires(etat.bareme, s.categorie);
+    zone.innerHTML = `<b>${s.points} pts</b> · rang ${s.rang} en ${s.categorie}${selonPaires ? ` à ${s.paires} paires` : ''} · compte dès ${M.libelleMois(M.moisEntree(s.date))}
+      ${selonPaires ? '' : `<div class="sous">Barème unique depuis le ${dateFr(etat.bareme.enVigueurDepuis)} : en ${s.categorie}, le nombre de paires ne change plus les points, il sert seulement à situer le rang du tour</div>`}
+      ${interdit ? `<div class="bandeau alerte">Un ${s.categorie} est interdit à ton classement actuel</div>` : ''}`;
     btn.disabled = false;
   } catch (err) {
     zone.innerHTML = `<div class="bandeau alerte">${echap(err.message)}</div>`;
