@@ -1,7 +1,7 @@
 /* Service worker minimal, copié de l'app Laura : réseau d'abord, cache en secours.
    Les JSON de data/ suivent la même règle ; la date du relevé affichée signale un hors-ligne périmé. */
-const CACHE = 'padel-classement-v1';
-const COQUILLE = ['./', './index.html', './app.js', './moteur.js', './manifest.webmanifest', './icone.svg'];
+const CACHE = 'padel-classement-v2';
+const COQUILLE = ['./', './index.html', './app.js', './moteur.js', './fluide.js', './manifest.webmanifest', './icone.svg'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(COQUILLE)).then(() => self.skipWaiting()));

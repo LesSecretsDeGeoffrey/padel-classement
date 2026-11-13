@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1A1410">
+<meta name="theme-color" content="#F2F2F7">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Padel">
@@ -11,69 +11,269 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icone.svg" type="image/svg+xml">
 <title>Mon classement padel</title>
+<script>
+/* Clair ou sombre selon l'appareil, posé avant le premier affichage. Pour forcer : ajouter ?theme=sombre ou ?theme=clair à l'adresse. */
+(function () {
+  var force = new URLSearchParams(location.search).get('theme');
+  var media = matchMedia('(prefers-color-scheme: dark)');
+  function poser() {
+    var sombre = force ? force === 'sombre' : media.matches;
+    document.documentElement.dataset.theme = sombre ? 'sombre' : 'clair';
+    var m = document.querySelector('meta[name=theme-color]');
+    if (m) m.content = sombre ? '#000000' : '#F2F2F7';
+  }
+  poser();
+  if (media.addEventListener) media.addEventListener('change', poser);
+})();
+</script>
 <style>
 :root{
-  --creme:#FDF8F0; --creme2:#F4E9D5; --blanc:#FFFDFA;
-  --encre:#2A1E14; --encre2:rgba(42,30,20,.62); --encre3:rgba(42,30,20,.42);
-  --or:#C8A04A; --or-profond:#8B6914; --or-titre:#A8641C; --or-pale:rgba(200,160,74,.15);
-  --sombre:#1A1410; --bord:#E6DCCD; --rouge:#B4553F; --vert:#4F7A57; --vert-pale:#E6EFE7; --rouge-pale:#F7E8E4;
-  --r:16px; --rs:10px; --sh:0 1px 2px rgba(42,30,20,.05),0 4px 14px rgba(42,30,20,.06);
-  --safe-b:env(safe-area-inset-bottom,0px);
+  color-scheme:light;
+  --fond:#F2F2F7; --carte:#FFFFFF; --carte2:#EFEFF4;
+  --texte:#0B0B0F; --texte2:rgba(60,60,67,.76); --texte3:rgba(60,60,67,.46); --trait:rgba(60,60,67,.14);
+  --accent:#C8F03C; --sur-accent:#151B00; --accent-trait:#6C9100; --accent-pale:rgba(168,214,30,.2);
+  --vert:#248A3D; --vert-pale:rgba(52,199,89,.16); --rouge:#D70015; --rouge-pale:rgba(255,59,48,.12); --rouge-plein:#FF3B30;
+  --verre:rgba(242,242,247,.74); --voile:rgba(0,0,0,.36); --survol:#E3E3EA;
+  --ombre:0 1px 2px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06);
+  --systeme:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  --chiffres:ui-rounded,"SF Pro Rounded",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+  --doux:cubic-bezier(.2,.9,.25,1);
+  --safe-b:env(safe-area-inset-bottom,0px); --safe-t:env(safe-area-inset-top,0px);
+}
+:root[data-theme="sombre"]{
+  color-scheme:dark;
+  --fond:#000000; --carte:#1C1C1E; --carte2:#2C2C2E;
+  --texte:#FFFFFF; --texte2:rgba(235,235,245,.68); --texte3:rgba(235,235,245,.38); --trait:rgba(84,84,88,.55);
+  --accent:#D4F53C; --sur-accent:#141A00; --accent-trait:#D4F53C; --accent-pale:rgba(212,245,60,.15);
+  --vert:#30D158; --vert-pale:rgba(48,209,88,.18); --rouge:#FF6961; --rouge-pale:rgba(255,69,58,.18); --rouge-plein:#FF453A;
+  --verre:rgba(22,22,24,.7); --voile:rgba(0,0,0,.56); --survol:#3A3A3C;
+  --ombre:none;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0;background:var(--creme);color:var(--encre)}
-body{font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding-bottom:calc(24px + var(--safe-b))}
-h1,h2,h3{font-family:Georgia,"Times New Roman",serif;font-weight:600;margin:0}
-h1{font-size:22px;color:var(--or-titre)} h2{font-size:19px;margin:22px 0 10px;display:flex;align-items:baseline;justify-content:space-between;gap:10px}
-h2 small{font-family:-apple-system,sans-serif;font-size:13px;font-weight:400;color:var(--encre2)}
-header{padding:18px 18px 8px} .sous{font-size:13px;color:var(--encre2);margin-top:3px}
-main{padding:0 14px 20px;max-width:720px;margin:0 auto}
-.carte{background:var(--blanc);border:1px solid var(--bord);border-radius:var(--r);padding:16px;box-shadow:var(--sh);margin-bottom:12px}
-.rang{font-family:Georgia,serif;font-size:44px;line-height:1;color:var(--or-titre);font-variant-numeric:lining-nums tabular-nums}
-.pts{font-size:15px;color:var(--encre2);margin-top:6px}
-.evo{display:inline-block;font-size:13px;padding:3px 9px;border-radius:999px;margin-top:8px;background:var(--vert-pale);color:var(--vert)}
-.evo.neg{background:var(--rouge-pale);color:var(--rouge)}
-.overline{font-family:"Courier New",monospace;font-size:9px;letter-spacing:2.5px;text-transform:uppercase;color:var(--or-profond);display:inline-block;background:var(--or-pale);padding:3px 8px;border-radius:999px}
-.bandeau{background:var(--or-pale);border:1px solid rgba(200,160,74,.35);border-radius:var(--rs);padding:10px 12px;font-size:14px;margin-top:10px}
-.bandeau.alerte{background:var(--rouge-pale);border-color:rgba(180,85,63,.3)}
-.bandeau.simu{background:var(--sombre);color:var(--creme);border-color:var(--sombre)}
-.bandeau.simu b{color:var(--or)}
-table{width:100%;border-collapse:collapse;font-size:14px} th{text-align:left;font-weight:600;color:var(--encre2);font-size:12px;text-transform:uppercase;letter-spacing:.5px;padding:6px 4px;border-bottom:1px solid var(--bord)}
-td{padding:9px 4px;border-bottom:1px solid var(--bord);vertical-align:top} td.num,th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
-tr.faible td{color:var(--encre3)} tr.simu td{background:var(--or-pale)} tr.simu td:first-child{border-left:3px solid var(--or)}
-.puce{display:inline-block;font-size:11px;padding:1px 7px;border-radius:999px;background:var(--creme2);color:var(--encre2);margin-left:4px;white-space:nowrap}
-.puce.simu{background:var(--or);color:#fff} .puce.hors{background:transparent;border:1px solid var(--bord);color:var(--encre3)}
-label{display:block;font-size:13px;color:var(--encre2);margin:12px 0 4px}
-input,select{width:100%;font:inherit;padding:10px 12px;border:1px solid var(--bord);border-radius:var(--rs);background:var(--blanc);color:var(--encre)}
-.grille2{display:grid;grid-template-columns:1fr 1fr;gap:0 10px}
-.tours{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.tours button{flex:1 1 30%;font:inherit;font-size:14px;padding:9px 6px;border:1px solid var(--bord);border-radius:var(--rs);background:var(--blanc);color:var(--encre)}
-.tours button.actif{background:var(--sombre);color:var(--creme);border-color:var(--sombre)}
-.btn{display:block;width:100%;font:inherit;font-weight:600;font-size:16px;padding:13px;border:0;border-radius:var(--rs);background:var(--or);color:var(--sombre);margin-top:14px;cursor:pointer}
-.btn:disabled{opacity:.5;cursor:default}
-.btn-mini{font:inherit;font-size:14px;line-height:1;padding:6px 9px;border:1px solid var(--bord);border-radius:8px;background:var(--blanc);color:var(--rouge);cursor:pointer}
-.lien{background:none;border:0;font:inherit;font-size:13px;color:var(--or-profond);text-decoration:underline;cursor:pointer;padding:6px 0}
-.apercu{margin-top:12px;font-size:14px;color:var(--encre2)} .apercu b{font-family:Georgia,serif;font-size:22px;color:var(--or-titre);font-variant-numeric:lining-nums}
-.ligne{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font-size:14px;border-bottom:1px solid var(--bord)} .ligne:last-child{border:0}
-.graphe{width:100%;height:auto;display:block;margin-top:6px}
-.graphe text{font:11px -apple-system,sans-serif;fill:var(--encre2)} .graphe .rangtxt{font-size:9px;fill:var(--or-profond)}
-.graphe .barre{fill:var(--or)} .graphe .barre.simu{fill:var(--or-titre)} .graphe .expire{fill:var(--rouge)}
-details summary{cursor:pointer;font-size:14px;color:var(--or-profond);padding:6px 0;list-style:none} details summary::-webkit-details-marker{display:none}
-details summary::before{content:'\25B8 ';} details[open] summary::before{content:'\25BE ';}
-.toast{position:fixed;left:50%;bottom:calc(18px + var(--safe-b));transform:translateX(-50%);background:var(--sombre);color:var(--creme);padding:11px 16px;border-radius:999px;font-size:14px;max-width:92vw;box-shadow:var(--sh);opacity:0;pointer-events:none;transition:opacity .3s;z-index:9}
-.toast.visible{opacity:1}
-.vide{color:var(--encre3);font-size:14px;padding:8px 0}
-.pied{display:flex;flex-wrap:wrap;gap:6px 18px;justify-content:center;margin-top:8px}
-@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+[hidden]{display:none!important}
+html,body{margin:0;padding:0;background:var(--fond);color:var(--texte)}
+html.fige{overflow:hidden}
+body{font:17px/1.35 var(--systeme);-webkit-font-smoothing:antialiased;padding-bottom:calc(104px + var(--safe-b))}
+button{font:inherit;color:inherit;cursor:pointer;-webkit-user-select:none;user-select:none;touch-action:manipulation}
+.hero,.liste,.bas,.feuille{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+button:focus-visible,input:focus-visible,.courbe:focus-visible{outline:2px solid var(--accent-trait);outline-offset:2px}
+main{max-width:560px;margin:0 auto;padding:calc(var(--safe-t) + 18px) 16px 0}
+
+/* Le rang */
+.hero{padding:22px 4px 4px}
+.h-mois{font-size:15px;font-weight:600;color:var(--texte2)}
+.h-mois::first-letter{text-transform:uppercase}
+.h-rang{font-family:var(--chiffres);font-weight:700;font-size:clamp(60px,19.5vw,104px);line-height:1;letter-spacing:-.045em;font-variant-numeric:tabular-nums lining-nums;margin:6px 0 14px;display:flex;align-items:flex-start;white-space:nowrap}
+.h-rang sup{font-size:.34em;font-weight:600;color:var(--texte2);letter-spacing:0;margin:.3em 0 0 .08em;line-height:1}
+.h-ligne{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;font-size:15px;color:var(--texte2);min-height:28px}
+.pastille{display:inline-flex;align-items:center;font-weight:600;font-size:14px;padding:4px 10px;border-radius:999px;background:var(--vert-pale);color:var(--vert);font-variant-numeric:tabular-nums;white-space:nowrap}
+.pastille.neg{background:var(--rouge-pale);color:var(--rouge)}
+.pastille.neutre{background:var(--carte2);color:var(--texte2)}
+.pli{display:grid;grid-template-rows:1fr;transition:grid-template-rows .4s var(--doux),opacity .3s ease}
+.pli.ferme{grid-template-rows:0fr;opacity:0}
+.pli>div{min-height:0;overflow:hidden}
+.projete{margin-top:14px;background:var(--accent);color:var(--sur-accent);border-radius:16px;padding:11px 14px;font-size:15px;line-height:1.3}
+.projete b{font-family:var(--chiffres);font-size:17px;font-variant-numeric:tabular-nums}
+
+/* Blocs */
+.bloc{margin-top:28px}
+.bloc h2{font-size:22px;font-weight:700;letter-spacing:-.02em;margin:0 4px 10px;display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.bloc h2 small{font-size:14px;font-weight:400;color:var(--texte2);letter-spacing:0;text-align:right;margin-left:auto}
+.mini{display:none;align-items:center;gap:6px;border:0;border-radius:999px;padding:9px 16px;background:var(--accent);color:var(--sur-accent);font-size:15px;font-weight:600;letter-spacing:0;white-space:nowrap;transition:transform .12s ease-out}
+.mini:active{transform:scale(.96)}
+.mini kbd,.principal kbd{font:600 11px var(--systeme);padding:2px 6px;border-radius:6px;background:rgba(0,0,0,.12)}
+.principal kbd{display:none;font-size:12px}
+.sous-titre{font-size:14px;color:var(--texte2);margin:-6px 4px 10px}
+
+/* La courbe des 12 mois */
+.courbe{background:var(--carte);border-radius:22px;padding:8px 0 4px;box-shadow:var(--ombre);touch-action:pan-y;-webkit-user-select:none;user-select:none;position:relative;cursor:crosshair}
+.courbe svg{display:block;width:100%;height:176px;overflow:visible}
+.courbe text{font:11px var(--systeme);fill:var(--texte3)}
+.courbe text.val{font:600 12px var(--chiffres);fill:var(--texte2);transition:opacity .15s;paint-order:stroke;stroke:var(--carte);stroke-width:5px;stroke-linejoin:round}
+.courbe text.sel{fill:var(--texte);font-weight:600}
+.courbe .aire{fill:url(#fondu)} .courbe .ligne{fill:none;stroke:var(--accent-trait);stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.courbe .sans{fill:none;stroke:var(--texte3);stroke-width:1.5;stroke-dasharray:3 5;stroke-linecap:round}
+.courbe .sol{stroke:var(--trait);stroke-width:1}
+.courbe .expire{fill:var(--rouge-plein)}
+.courbe #cur{opacity:0;transition:opacity .15s}
+.courbe.scrute #cur{opacity:1} .courbe.scrute text.val{opacity:0}
+.courbe #cur line{stroke:var(--texte3);stroke-width:1}
+.courbe #cur circle{fill:var(--accent-trait);stroke:var(--carte);stroke-width:3}
+.courbe #cur text{font:700 13px var(--chiffres);fill:var(--texte)}
+.legende{font-size:13px;color:var(--texte3);margin:8px 4px 0}
+.legende i{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--rouge-plein);margin-right:6px;vertical-align:1px}
+.info{margin:12px 4px 0;font-size:15px;color:var(--texte2);line-height:1.4}
+.info p{margin:0 0 4px}
+
+/* La saisie en place, au-dessus du palmarès (Mac) */
+#composer{outline:none}
+#composer>div{margin:-6px -28px 0;padding:6px 28px 0}
+.composer{background:var(--carte);border-radius:22px;box-shadow:var(--ombre);margin-bottom:14px}
+.c-tete{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0}
+.c-tete h3{font-size:17px;font-weight:700;letter-spacing:-.01em;margin:0}
+#composer-in .f-corps{padding:0 20px 20px;overflow:visible;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0 12px}
+#composer-in .f-corps>*{grid-column:1/-1}
+#composer-in .f-corps>.deux{grid-column:span 2}
+#composer-in .f-corps>.champ-date{grid-column:span 1}
+#composer-in .grille.c4{grid-template-columns:repeat(8,minmax(0,1fr))}
+#composer-in #f-cat button{font-size:14px;padding:8px 2px}
+#composer-in .champ{margin-top:14px}
+#composer-in .apercu{margin-top:16px}
+
+/* Le palmarès */
+.liste{list-style:none;margin:0;padding:0;background:var(--carte);border-radius:22px;box-shadow:var(--ombre);overflow:hidden}
+.liste li{display:grid;grid-template-rows:1fr;transition:grid-template-rows .4s var(--doux),opacity .28s ease}
+.liste li.entre,.liste li.sort{grid-template-rows:0fr;opacity:0}
+.dedans{min-height:0;overflow:hidden;position:relative}
+.fond-suppr{position:absolute;inset:0;background:var(--rouge-plein);color:#fff;display:flex;align-items:center;justify-content:flex-end;padding-right:22px;font-weight:600;font-size:15px}
+.rangee{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--carte);position:relative;touch-action:pan-y}
+.liste li+li .rangee::before{content:"";position:absolute;left:68px;right:0;top:0;height:1px;background:var(--trait)}
+.cat{flex:none;width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font:700 13px var(--chiffres);background:var(--carte2);letter-spacing:-.02em}
+.milieu{flex:1;min-width:0}
+.titre{font-size:16px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sous{font-size:13px;color:var(--texte2);margin-top:2px}
+.pts{flex:none;text-align:right;font:700 20px/1.05 var(--chiffres);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pts small{display:block;font:400 11px var(--systeme);color:var(--texte3);letter-spacing:0;margin-top:2px}
+li.hors .cat,li.hors .titre,li.hors .pts,li.hors .sous{color:var(--texte3)}
+li.ajout .rangee{background:linear-gradient(var(--accent-pale),var(--accent-pale)),var(--carte)}
+li.ajout .cat{background:var(--accent);color:var(--sur-accent)}
+.croix{flex:none;width:30px;height:30px;border-radius:50%;border:0;background:var(--carte);color:var(--texte2);font-size:13px;line-height:1;display:grid;place-items:center;position:relative;transition:transform .12s ease-out}
+.croix::after{content:"";position:absolute;inset:-8px}
+.note{font-size:13px;color:var(--texte3);margin:10px 4px 0}
+.pied{display:flex;flex-wrap:wrap;gap:4px 20px;justify-content:center;margin-top:22px}
+.lien{background:none;border:0;font-size:15px;color:var(--accent-trait);padding:8px 4px;font-weight:500}
+.pied-note{text-align:center;font-size:12px;color:var(--texte3);margin:6px 0 0}
+
+/* Barres flottantes */
+.haut{position:fixed;top:0;left:0;right:0;height:calc(44px + var(--safe-t));padding-top:var(--safe-t);display:flex;align-items:center;justify-content:center;gap:8px;background:var(--verre);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border-bottom:1px solid var(--trait);z-index:5;opacity:0;pointer-events:none;font-size:14px;color:var(--texte2)}
+.haut b{font:700 17px var(--chiffres);color:var(--texte);font-variant-numeric:tabular-nums}
+.bas{position:fixed;left:0;right:0;bottom:0;padding:12px 16px calc(12px + var(--safe-b));background:var(--verre);-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border-top:1px solid var(--trait);z-index:5;display:flex;justify-content:center}
+.principal{width:100%;max-width:528px;border:0;border-radius:16px;padding:16px;font-weight:600;font-size:17px;line-height:1;background:var(--accent);color:var(--sur-accent);display:flex;align-items:center;justify-content:center;gap:8px;transition:transform .12s ease-out,opacity .2s}
+.principal:disabled{opacity:.4;cursor:default}
+.principal:not(:disabled):active,.croix:active,.rond:active,.grille button:active,.pas button:active{transform:scale(.96)}
+
+/* La feuille d'ajout */
+.voile{position:fixed;inset:0;background:var(--voile);opacity:0;pointer-events:none;z-index:8;touch-action:none}
+.feuille{position:fixed;left:0;right:0;bottom:0;margin:0 auto;max-width:560px;max-height:calc(100dvh - var(--safe-t) - 20px);background:var(--carte);border-radius:26px 26px 0 0;z-index:9;transform:translate3d(0,110%,0);will-change:transform;display:flex;flex-direction:column;box-shadow:0 -12px 44px rgba(0,0,0,.2);visibility:hidden;outline:none}
+.feuille.la{visibility:visible}
+.feuille::after{content:"";position:absolute;left:0;right:0;top:100%;height:60vh;background:var(--carte)}
+.f-prise{flex:none;touch-action:none;cursor:grab}
+.poignee{width:36px;height:5px;border-radius:3px;background:var(--texte3);margin:8px auto 0}
+.f-tete{display:flex;align-items:center;justify-content:space-between;padding:10px 20px 6px}
+.f-tete h3{font-size:20px;font-weight:700;letter-spacing:-.02em;margin:0}
+.rond{width:30px;height:30px;border-radius:50%;border:0;background:var(--carte2);color:var(--texte2);font-size:13px;line-height:1;display:grid;place-items:center;position:relative;transition:transform .12s ease-out}
+.rond::after{content:"";position:absolute;inset:-8px}
+.f-corps{padding:0 20px calc(18px + var(--safe-b));overflow-y:auto;overscroll-behavior:contain}
+.champ{margin-top:16px}
+.etiq{display:block;font-size:13px;font-weight:600;color:var(--texte2);margin-bottom:8px}
+.grille{display:grid;gap:8px}
+.grille.c4{grid-template-columns:repeat(4,1fr)} .grille.c3{grid-template-columns:repeat(3,1fr)}
+.grille button{min-height:46px;padding:8px 4px;border-radius:12px;border:0;background:var(--carte2);font-weight:600;font-size:15px;transition:transform .12s ease-out,background .18s,color .18s}
+#f-cat button{font-family:var(--chiffres)}
+#f-tours button{font-size:13px;white-space:nowrap}
+.grille button.actif{background:var(--texte);color:var(--carte)}
+.grille button.interdit:not(.actif){color:var(--texte3)}
+.deux{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pas{display:flex;align-items:center;background:var(--carte2);border-radius:12px;height:46px}
+.pas button{width:46px;height:46px;border:0;border-radius:12px;background:none;font-size:22px;line-height:1;transition:transform .12s ease-out,background .18s}
+.pas output{flex:1;text-align:center;font:600 17px var(--chiffres);font-variant-numeric:tabular-nums}
+input[type=date]{width:100%;height:46px;border:0;border-radius:12px;background:var(--carte2);color:var(--texte);font:inherit;padding:0 12px;-webkit-appearance:none;appearance:none}
+.apercu{margin-top:18px;padding:14px 16px;border-radius:16px;background:var(--carte2);display:flex;align-items:baseline;gap:4px 12px;flex-wrap:wrap}
+.apercu .gros{font:700 34px/1 var(--chiffres);letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.apercu .gros small{font-size:17px;font-weight:600;letter-spacing:0;color:var(--texte2);margin-left:3px}
+.apercu .net{font-weight:600;color:var(--vert)}
+.apercu .txt{flex-basis:100%;font-size:14px;color:var(--texte2);margin-top:4px}
+.alerte{margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--rouge-pale);color:var(--rouge);font-size:14px;font-weight:500}
+.f-corps .principal{max-width:none;margin-top:16px}
+
+.toast{position:fixed;left:50%;bottom:calc(96px + var(--safe-b));transform:translate(-50%,12px);opacity:0;transition:opacity .25s ease,transform .4s var(--doux);background:var(--texte);color:var(--fond);padding:11px 16px;border-radius:22px;font-size:14px;font-weight:500;width:max-content;max-width:min(92vw,420px);z-index:12;pointer-events:none;text-align:center}
+.toast.visible{opacity:1;transform:translate(-50%,0)}
+
+/* Mac (là où l'appli sert vraiment) : le rang et la courbe restent à gauche, le palmarès défile à droite,
+   la saisie se déplie au-dessus du palmarès, tout se fait à la souris et au clavier */
+@media (min-width:960px){
+  body{padding-bottom:56px}
+  main{max-width:1200px;display:grid;grid-template-columns:minmax(0,500px) minmax(0,1fr);gap:0 64px;align-items:start;padding:44px 28px 0}
+  .gauche{position:sticky;top:44px}
+  .hero{padding-top:6px}
+  .h-rang{font-size:clamp(84px,8.6vw,124px)}
+  .courbe svg{height:240px}
+  .droite .bloc:first-child{margin-top:12px}
+  .droite h2{justify-content:flex-start;align-items:center;gap:12px;min-height:38px}
+  .droite h2 small{margin:0 auto 0 0}
+  .mini{display:inline-flex}
+  .principal kbd{display:inline}
+  .haut,.bas{display:none}
+  .toast{bottom:40px}
+}
+@media (hover:hover){
+  .grille button:not(.actif):hover,.pas button:hover,.rond:hover,.croix:hover{background:var(--survol)}
+  .principal:not(:disabled):hover,.mini:hover{filter:brightness(1.05) saturate(1.08)}
+  .lien:hover{text-decoration:underline}
+}
+@media (prefers-reduced-motion:reduce){*{transition-duration:.01ms!important;animation:none!important}}
+@media (prefers-reduced-transparency:reduce){.haut,.bas{background:var(--fond);-webkit-backdrop-filter:none;backdrop-filter:none}}
+@media (prefers-contrast:more){:root{--trait:rgba(60,60,67,.5);--texte2:var(--texte);--texte3:rgba(60,60,67,.8)}:root[data-theme="sombre"]{--trait:rgba(235,235,245,.5);--texte3:rgba(235,235,245,.8)}.haut,.bas{background:var(--fond);-webkit-backdrop-filter:none;backdrop-filter:none}}
 </style>
 </head>
 <body>
-<header>
-  <h1>Mon classement padel</h1>
-  <div class="sous" id="sous-titre">Chargement…</div>
-</header>
-<main id="app"></main>
-<div class="toast" id="toast"></div>
+<div class="haut" id="haut" aria-hidden="true"><b id="haut-rang"></b><span id="haut-mois"></span></div>
+<main>
+  <div class="gauche">
+    <section class="hero" id="hero">
+      <div class="h-mois" id="h-mois">Chargement…</div>
+      <div class="h-rang"><span id="h-rang">–</span><sup id="h-e" hidden>e</sup></div>
+      <div class="h-ligne"><span class="pastille neutre" id="h-evo" hidden></span><span id="h-detail"></span></div>
+      <div class="pli ferme" id="h-pli"><div><div class="projete" id="h-projete"></div></div></div>
+    </section>
+    <section class="bloc">
+      <h2>Les 12 prochains mois</h2>
+      <p class="sous-titre" id="courbe-sous"></p>
+      <div class="courbe" id="courbe" tabindex="0" role="slider" aria-label="Parcourir les 12 prochains mois" aria-valuemin="0" aria-valuemax="11" aria-valuenow="0">
+        <svg id="courbe-svg" aria-hidden="true"></svg>
+      </div>
+      <p class="legende" id="legende" hidden><i></i>un résultat sort du calcul ce mois-là</p>
+      <div class="info" id="info"></div>
+    </section>
+    <div class="bas"><button class="principal" id="plus"><span aria-hidden="true">+</span> Ajouter un tournoi</button></div>
+  </div>
+  <div class="droite">
+    <section class="bloc">
+      <h2>Mon palmarès <small id="pal-compte"></small><button class="mini" id="plus-bureau" title="Raccourci : touche N"><span aria-hidden="true">+</span> Ajouter un tournoi <kbd aria-hidden="true">N</kbd></button></h2>
+      <div class="pli ferme" id="composer" tabindex="-1" role="group" aria-labelledby="c-titre" inert><div><div class="composer">
+        <div class="c-tete"><h3 id="c-titre">Nouveau tournoi</h3><button class="rond" id="c-fermer" aria-label="Fermer" title="Échap">✕</button></div>
+        <div id="composer-in"></div>
+      </div></div></div>
+      <ul class="liste" id="liste"></ul>
+      <p class="note">Les 12 meilleurs résultats comptent. Ceux en clair sont hors des 12 ce mois-ci</p>
+    </section>
+    <div class="pied">
+      <button class="lien" id="copier-lien">Copier mon lien de sauvegarde</button>
+      <button class="lien" id="tout-effacer" hidden>Enlever tous les tournois ajoutés</button>
+    </div>
+    <p class="pied-note" id="pied-note"></p>
+  </div>
+</main>
+
+<div class="voile" id="voile"></div>
+<div class="feuille" id="feuille" role="dialog" aria-modal="true" aria-labelledby="f-titre" tabindex="-1" inert>
+  <div class="f-prise" id="f-prise">
+    <div class="poignee"></div>
+    <div class="f-tete"><h3 id="f-titre">Ajouter un tournoi</h3><button class="rond" id="f-fermer" aria-label="Fermer">✕</button></div>
+  </div>
+  <div class="f-corps" id="f-corps">
+    <div class="champ"><span class="etiq">Catégorie</span><div class="grille c4" id="f-cat"></div></div>
+    <div class="champ"><span class="etiq">Tour atteint</span><div class="grille c3" id="f-tours"></div></div>
+    <div class="champ deux">
+      <div><span class="etiq">Paires inscrites</span><div class="pas" data-champ="paires"><button data-pas="-1" aria-label="Une paire de moins">−</button><output id="f-paires"></output><button data-pas="1" aria-label="Une paire de plus">+</button></div></div>
+      <div><span class="etiq">Rang final</span><div class="pas" data-champ="rang"><button data-pas="-1" aria-label="Un rang de moins">−</button><output id="f-rang"></output><button data-pas="1" aria-label="Un rang de plus">+</button></div></div>
+    </div>
+    <div class="champ champ-date"><label class="etiq" for="f-date">Date du tournoi</label><input type="date" id="f-date"></div>
+    <div id="f-apercu"></div>
+    <button class="principal" id="f-ajouter">Ajouter à mon palmarès <kbd aria-hidden="true">↵</kbd></button>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
 <script type="module" src="app.js"></script>
 <script>
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
