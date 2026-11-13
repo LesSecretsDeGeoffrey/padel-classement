@@ -9,7 +9,14 @@ const CLE_SIMU = 'padel.simulations';
 const CLE_MOIS = 'padel.dernierMoisVu';
 const MOIS_AXE = ['jan', 'fév', 'mar', 'avr', 'mai', 'juin', 'juil', 'août', 'sep', 'oct', 'nov', 'déc'];
 const MOIS_TXT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
-const etat = { bareme: null, joueur: null, table: null, simulations: [], ajout: null, proj: [], sans: [], survol: null };
+const etat = { bareme: null, joueur: null, table: null, simulations: [], ajout: null, proj: [], sans: [], survol: null, candidat: null };
+// Conçu pour le Mac d'abord (c'est là que Geoffrey s'en sert) : à partir de 960 px, la saisie se fait en place
+// au-dessus du palmarès ; en dessous (téléphone), dans une feuille qui monte du bas.
+const bureau = matchMedia('(min-width: 960px)');
+let saisieOuverte = false;
+// Ce que montre la courbe : la projection avec le tournoi en cours de réglage s'il y en a un, et sa référence en pointillé.
+const vue = () => etat.candidat || etat.proj;
+const reference = () => (etat.candidat ? etat.proj : etat.sans);
 let premierRendu = true; // à l'ouverture, tout est posé d'emblée : seuls les changements s'animent
 
 const calme = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -114,6 +121,7 @@ function toutMettreAJour() {
   const j = etat.joueur;
   etat.proj = M.projection(j.resultats, etat.simulations, j.mois, etat.table, 12);
   etat.sans = etat.simulations.length ? M.projection(j.resultats, [], j.mois, etat.table, 12) : etat.proj;
+  if (saisieOuverte) majApercu(); // le tournoi en cours de réglage se recalcule sur le nouveau palmarès
   majHero(); majProjete(); majCourbe(); majInfo(); majListe();
   $('#tout-effacer').hidden = !etat.simulations.length;
 }
@@ -124,12 +132,13 @@ $('#h-projete').innerHTML = '<span id="pj-avant"></span><b id="pj-gras"><span id
 const vivProjete = nombreVivant($('#pj-rang'), 0.6);
 
 function majHero() {
-  const j = etat.joueur, l = etat.survol ? etat.proj[etat.survol] : null;
+  const j = etat.joueur, l = etat.survol ? vue()[etat.survol] : null;
   const rang = l ? l.classement : j.classement;
   const ecart = l ? (rang != null && j.classement != null ? j.classement - rang : null) : j.evolution;
-  $('#h-mois').textContent = l ? `${M.libelleMois(l.mois)} · estimation` : M.libelleMois(j.mois);
+  const quand = l ? `${M.libelleMois(l.mois)} · estimation${etat.candidat ? ' avec ce tournoi' : ''}` : M.libelleMois(j.mois);
+  $('#h-mois').textContent = quand;
   $('#haut-rang').textContent = rangTxt(rang);
-  $('#haut-mois').textContent = l ? `${M.libelleMois(l.mois)} · estimation` : M.libelleMois(j.mois);
+  $('#haut-mois').textContent = quand;
   $('#h-e').hidden = rang == null;
   if (rang == null) { vivRang.oublier(); $('#h-rang').textContent = '–'; } else vivRang.vers(rang, etat.survol === null ? 0.55 : 0.2);
   const evo = $('#h-evo');
@@ -202,25 +211,25 @@ function cheminLisse(pts) {
 }
 
 function tracerCourbe() {
-  const W = zone.clientWidth;
+  const W = zone.clientWidth, svg = $('#courbe-svg');
   if (!W || !courbe.avec) return;
+  const H = svg.clientHeight || G.H;
   const n = courbe.avec.length, max = Math.max(1, ...courbe.avec, ...courbe.sans);
-  const pas = (W - 2 * G.cote) / (n - 1), sol = G.H - G.bas, h = sol - G.haut;
+  const pas = (W - 2 * G.cote) / (n - 1), sol = H - G.bas, h = sol - G.haut;
   const X = (i) => G.cote + i * pas, Y = (v) => sol - (v / max) * h;
   const pts = courbe.avec.map((v, i) => [X(i), Y(v)]);
   const ligne = cheminLisse(pts);
-  const svg = $('#courbe-svg');
-  svg.setAttribute('viewBox', `0 0 ${W} ${G.H}`);
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = `
     <defs><linearGradient id="fondu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" style="stop-color:var(--accent-trait);stop-opacity:.34"/><stop offset="1" style="stop-color:var(--accent-trait);stop-opacity:0"/></linearGradient></defs>
     <line class="sol" x1="${G.cote}" x2="${W - G.cote}" y1="${sol}" y2="${sol}"/>
     <path class="aire" d="${ligne}L${r1(X(n - 1))},${sol}L${r1(X(0))},${sol}Z"/>
-    ${etat.simulations.length ? `<path class="sans" d="${cheminLisse(courbe.sans.map((v, i) => [X(i), Y(v)]))}"/>` : ''}
+    ${etat.simulations.length || etat.candidat ? `<path class="sans" d="${cheminLisse(courbe.sans.map((v, i) => [X(i), Y(v)]))}"/>` : ''}
     <path class="ligne" d="${ligne}"/>
     <text class="val" x="${r1(X(0) - 4)}" y="${r1(pts[0][1] - 10)}">${Math.round(courbe.avec[0])}</text>
     <text class="val" x="${r1(X(n - 1) + 4)}" y="${r1(pts[n - 1][1] - 10)}" text-anchor="end">${Math.round(courbe.avec[n - 1])}</text>
-    ${etat.proj.map((l, i) => l.expires.length ? `<circle class="expire" cx="${r1(X(i))}" cy="${sol + 8}" r="2.5"/>` : '').join('')}
-    ${etat.proj.map((l, i) => `<text class="m" data-i="${i}" x="${r1(X(i))}" y="${G.H - 9}" text-anchor="middle">${MOIS_AXE[Number(l.mois.slice(5)) - 1]}</text>`).join('')}
+    ${vue().map((l, i) => l.expires.length ? `<circle class="expire" cx="${r1(X(i))}" cy="${sol + 8}" r="2.5"/>` : '').join('')}
+    ${vue().map((l, i) => `<text class="m" data-i="${i}" x="${r1(X(i))}" y="${H - 9}" text-anchor="middle">${MOIS_AXE[Number(l.mois.slice(5)) - 1]}</text>`).join('')}
     <g id="cur"><line id="cur-l" y1="20" y2="${sol}"/><circle id="cur-p" r="6.5"/><text id="cur-t" y="14" text-anchor="middle"></text></g>`;
   courbe.geo = { pts, W, pas };
   poserCurseur();
@@ -237,11 +246,12 @@ const pMorph = animer(rMorph, (t) => {
 }, MVT);
 
 function majCourbe() {
-  const versA = etat.proj.map(l => l.total), versS = etat.sans.map(l => l.total);
+  const versA = vue().map(l => l.total), versS = reference().map(l => l.total);
   if (!courbe.avec) { courbe.avec = versA; courbe.sans = versS; tracerCourbe(); }
   else { morph = { deA: courbe.avec.slice(), deS: courbe.sans.slice(), versA, versS }; pMorph.poser(0); pMorph.vers(1); }
-  $('#courbe-sous').textContent = etat.simulations.length ? 'avec tes ajouts, sans eux en pointillé' : 'si tu ne rejoues pas';
-  $('#legende').hidden = !etat.proj.some(l => l.expires.length);
+  $('#courbe-sous').textContent = etat.candidat ? 'aperçu avec ce tournoi, sans lui en pointillé'
+    : etat.simulations.length ? 'avec tes ajouts, sans eux en pointillé' : 'si tu ne rejoues pas';
+  $('#legende').hidden = !vue().some(l => l.expires.length);
 }
 
 // Le curseur : deux ressorts indépendants (x et y) vers le point du mois le plus proche du doigt.
@@ -251,7 +261,7 @@ const pcx = animer(rcx, poserCurseur, MVT), pcy = animer(rcy, poserCurseur, MVT)
 function poserCurseur() {
   const g = courbe.geo, trait = $('#cur-l');
   if (!g || !trait || etat.survol === null) return;
-  const x = r1(rcx.valeur), l = etat.proj[etat.survol];
+  const x = r1(rcx.valeur), l = vue()[etat.survol];
   trait.setAttribute('x1', x); trait.setAttribute('x2', x);
   $('#cur-p').setAttribute('cx', x); $('#cur-p').setAttribute('cy', r1(rcy.valeur));
   const txt = $('#cur-t');
@@ -266,7 +276,7 @@ function scruter(i) {
   etat.survol = i;
   zone.classList.add('scrute');
   zone.setAttribute('aria-valuenow', i);
-  zone.setAttribute('aria-valuetext', `${M.libelleMois(etat.proj[i].mois)} : ${etat.proj[i].total} points, ${rangTxt(etat.proj[i].classement)}`);
+  zone.setAttribute('aria-valuetext', `${M.libelleMois(vue()[i].mois)} : ${vue()[i].total} points, ${rangTxt(vue()[i].classement)}`);
   const [x, y] = g.pts[i];
   if (premier) { pcx.poser(x); pcy.poser(y); } else { pcx.vers(x); pcy.vers(y); }
   majHero();
@@ -297,7 +307,7 @@ zone.addEventListener('pointermove', (e) => {
 zone.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') relacher(); });
 zone.addEventListener('blur', relacher);
 zone.addEventListener('keydown', (e) => {
-  const i = etat.survol ?? 0, dernier = etat.proj.length - 1;
+  const i = etat.survol ?? 0, dernier = vue().length - 1;
   const vers = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: dernier }[e.key];
   if (e.key === 'Escape') relacher();
   else if (vers !== undefined) { e.preventDefault(); scruter(borner(etat.survol === null ? 0 : vers, 0, dernier)); }
@@ -456,6 +466,14 @@ function majFormulaire() {
   majApercu();
 }
 
+// Pendant la saisie, la courbe montre déjà ce que donnerait le tournoi en cours de réglage.
+function definirCandidat(projection) {
+  if (!projection && !etat.candidat) return;
+  etat.candidat = projection;
+  majCourbe();
+  if (etat.survol !== null) { poserCurseur(); majHero(); }
+}
+
 // Aperçu vivant : les points du tournoi, ce qu'il rapporte vraiment, et le rang estimé au mois où il compte.
 function majApercu() {
   const boite = $('#f-apercu'), bouton = $('#f-ajouter'), j = etat.joueur;
@@ -477,9 +495,11 @@ function majApercu() {
       ${selonPaires ? '' : `<div class="apercu"><span class="txt" style="margin:0">Barème unique depuis le ${dateFr(etat.bareme.enVigueurDepuis)} : en ${s.categorie}, le nombre de paires ne change plus les points, il sert seulement à situer le rang du tour</span></div>`}
       ${M.categoriesInterdites(j.classement).includes(s.categorie) ? `<div class="alerte">Un ${s.categorie} est interdit à ton classement actuel</div>` : ''}`;
     bouton.disabled = false;
+    definirCandidat(saisieOuverte ? avec : null);
   } catch (err) {
     boite.innerHTML = `<div class="alerte">${echap(err.message)}</div>`;
     bouton.disabled = true;
+    definirCandidat(null);
   }
 }
 
@@ -518,11 +538,11 @@ $('#f-ajouter').addEventListener('click', () => {
     const s = lireAjout(), id = `s${Date.now()}`;
     etat.simulations.push({ id, creePourMois: etat.joueur.mois, ...s });
     sauverSimulations();
-    fermerFeuille();
+    fermerSaisie();
     toutMettreAJour();
     toast(`Ajouté : ${s.points} pts, compte dès ${M.libelleMois(M.moisEntree(s.date))}`);
     const li = [...$('#liste').children].find(el => el.dataset.cle === `s|${id}`);
-    if (li) setTimeout(() => li.scrollIntoView({ block: 'center', behavior: calme() ? 'auto' : 'smooth' }), 260);
+    if (li) setTimeout(() => li.scrollIntoView({ block: bureau.matches ? 'nearest' : 'center', behavior: calme() ? 'auto' : 'smooth' }), 260);
   } catch (err) { toast(err.message); }
 });
 
@@ -588,16 +608,64 @@ const finGeste = (e) => {
   const { actif, suivi } = geste; geste = null;
   if (!actif) return;
   const v = suivi.vitesse();
-  if (rf.valeur + projeter(v) > hauteur * 0.5) fermerFeuille(v);
-  else { ouverte = true; voile.style.pointerEvents = 'auto'; pf.vers(0, { vitesse: v, amortissement: 0.82, reponse: 0.32 }); }
+  if (rf.valeur + projeter(v) > hauteur * 0.5) fermerSaisie(v);
+  else { ouverte = true; saisieOuverte = true; voile.style.pointerEvents = 'auto'; pf.vers(0, { vitesse: v, amortissement: 0.82, reponse: 0.32 }); }
 };
 feuille.addEventListener('pointerup', finGeste);
 feuille.addEventListener('pointercancel', finGeste);
 
-$('#plus').addEventListener('click', ouvrirFeuille);
-$('#f-fermer').addEventListener('click', () => fermerFeuille());
-voile.addEventListener('click', () => fermerFeuille());
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ouverte) { fermerFeuille(); $('#plus').focus({ preventScroll: true }); } });
+// ---------- La saisie : en place au-dessus du palmarès sur Mac, dans la feuille sur téléphone ----------
+const composer = $('#composer');
+
+function ouvrirSaisie() {
+  saisieOuverte = true;
+  if (!bureau.matches) { ouvrirFeuille(); return; }
+  majFormulaire();
+  composer.inert = false; composer.classList.remove('ferme');
+  composer.focus({ preventScroll: true });
+  composer.scrollIntoView({ block: 'nearest', behavior: calme() ? 'auto' : 'smooth' });
+}
+
+function fermerSaisie(vitesse = 0) {
+  saisieOuverte = false;
+  definirCandidat(null);
+  if (bureau.matches) { composer.classList.add('ferme'); composer.inert = true; } else fermerFeuille(vitesse);
+}
+
+// Le même formulaire sert aux deux présentations : il est rangé dans celle qui correspond à la largeur.
+function rangerFormulaire() { (bureau.matches ? $('#composer-in') : feuille).appendChild(corps); }
+bureau.addEventListener('change', () => {
+  saisieOuverte = false; definirCandidat(null);
+  composer.classList.add('ferme'); composer.inert = true;
+  pf.arreter(); ouverte = false;
+  feuille.classList.remove('la'); feuille.inert = true; feuille.style.transform = '';
+  voile.style.opacity = 0; voile.style.pointerEvents = 'none';
+  document.documentElement.classList.remove('fige');
+  corps.style.touchAction = '';
+  rangerFormulaire();
+});
+rangerFormulaire();
+
+$('#plus').addEventListener('click', ouvrirSaisie);
+$('#plus-bureau').addEventListener('click', ouvrirSaisie);
+$('#f-fermer').addEventListener('click', () => fermerSaisie());
+$('#c-fermer').addEventListener('click', () => fermerSaisie());
+voile.addEventListener('click', () => fermerSaisie());
+
+// Clavier : N (ou +) ouvre la saisie, Entrée ajoute, Échap referme.
+document.addEventListener('keydown', (e) => {
+  const cible = e.target instanceof Element ? e.target : null;
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.key === 'Escape' && saisieOuverte) {
+    fermerSaisie();
+    (bureau.matches ? $('#plus-bureau') : $('#plus')).focus({ preventScroll: true });
+  } else if (!saisieOuverte && (e.key === 'n' || e.key === 'N' || e.key === '+') && !(cible && cible.closest('input,textarea,select'))) {
+    e.preventDefault(); ouvrirSaisie();
+  } else if (saisieOuverte && e.key === 'Enter' && !$('#f-ajouter').disabled && !(cible && cible.closest('#f-ajouter,#c-fermer,#f-fermer,.croix,.lien'))) {
+    // pendant la saisie, Entrée ajoute, même si le dernier clic a laissé le focus sur une pastille (Espace l'actionne)
+    e.preventDefault(); $('#f-ajouter').click();
+  }
+});
 
 // ---------- Pied, barre du haut ----------
 $('#tout-effacer').addEventListener('click', () => {
